@@ -1,0 +1,7 @@
+﻿services:
+  employeemanager:
+    image: employeemanager
+    build:
+      context: .
+      dockerfile: EmployeeManager/Dockerfile
+

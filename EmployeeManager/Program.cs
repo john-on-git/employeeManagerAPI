@@ -1,9 +1,7 @@
 using EmployeeManager.Models;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
-using Microsoft.Identity.Abstractions;
 using Microsoft.Identity.Web.Resource;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -37,7 +35,7 @@ app.MapGet("/TODO", (HttpContext httpContext) =>
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
 
         // return the object
-        throw new NotImplementedException();
+        return "Hello, World!";
     })
     .WithName("TODO") 
     .RequireAuthorization();

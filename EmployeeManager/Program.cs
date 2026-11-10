@@ -30,16 +30,149 @@ app.UseHttpsRedirection();
 
 var scopeRequiredByApi = app.Configuration["AzureAd:Scopes"] ?? "Employee.Manage";
 
-app.MapGet("/TODO", (HttpContext httpContext) =>
-    {
-        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-
-        // return the object
-        return "Hello, World!";
-    })
-    .WithName("TODO") 
+/*
+ * Endpoints for Employee CRUD.
+ */
+app.MapGet("/employee", (context) =>
+{
+    // TODO
+    throw new NotImplementedException();
+})
+    .WithName("TODO")
     .RequireAuthorization();
 
-// 
 
+app.MapPost("/employee", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+app.MapPut("/employee", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+app.MapDelete("/employee", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+/*
+ * Endpoints for simultaneously updating a Task & Employee.
+ */
+app.MapPost("/assigned-task", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+app.MapDelete("/assigned-task", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+/*
+ * Endpoints for Task CRUD.
+ */
+app.MapGet("/task", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+
+app.MapPost("/task", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+app.MapPut("/task", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+app.MapDelete("/task", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+/*
+ * Endpoints for simultaneously updating a Task & TaskCategory.
+ */
+
+app.MapPost("/categorise-task", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+app.MapDelete("/categorise-task", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+/*
+ * Endpoints for TaskCategory CRUD.
+ */
+app.MapGet("/task-category", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+
+app.MapPost("/task-category", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+app.MapPut("/task-category", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+
+app.MapDelete("/task-category", (context) =>
+    {
+        // TODO
+        throw new NotImplementedException();
+    })
+    .WithName("TODO")
+    .RequireAuthorization();
+    
 app.Run();

@@ -28,7 +28,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var scopeRequiredByApi = app.Configuration["AzureAd:Scopes"] ?? "";
+var scopeRequiredByApi = app.Configuration["AzureAd:Scopes"] ?? "Employee.Manage";
 
 app.MapGet("/TODO", (HttpContext httpContext) =>
     {

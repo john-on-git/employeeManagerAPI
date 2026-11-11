@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.Resource;
+using Microsoft.IdentityModel.Protocols.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,17 +12,31 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAdB2C"));
 builder.Services.AddAuthorization();
-builder.Services.AddDbContext<EmployeeManagerContext>(opt =>
+builder.Services.AddDbContextPool<EmployeeManagerContext>(opt =>
 {
-    opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    opt.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        o =>
+        {
+            // additional configuration goes here
+            o.SetPostgresVersion(13, 0);
+        });
 });
-
-Console.WriteLine($"Will Connect to: {builder.Configuration.GetConnectionString("DefaultConnection")}");
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+/*
+ * Programatically set up the DB. Required because we're using a containerised DB.
+ * According to StackOverflow users, could cause issues in a real production app.
+*/
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<EmployeeManagerContext>();
+    db.Database.Migrate();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -36,10 +51,10 @@ var scopeRequiredByApi = app.Configuration["AzureAd:Scopes"] ?? "Employee.Manage
 /*
  * Endpoints for Employee CRUD.
  */
-app.MapGet("/employee", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapGet("/employee", (EmployeeManagerContext dbContext) =>
 {
     // get all the employees for this user
-    httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+    // httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
     return dbContext.Employees.OrderBy(x => x.Name);
 })
     .WithName("getEmployees")

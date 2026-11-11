@@ -1,21 +1,17 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManager.Models;
 
 public class Task
 {
     /**
-     * ID, PK.
+     * Component of the composite key. Unique per user.
      */
     [Key]
     public required int Id { get; init; }
-    
-    /**
-     * Title of the Category.
-     */
-    [MaxLength(100)]
-    public required string Title { get; init; }
-    
+
     /**
      * Description of the Category.
      */
@@ -25,7 +21,7 @@ public class Task
     /**
      * Employee that the Task is assigned to.
      */
-    public required Employee Employee { get; init; }
+    public required Employee? Employee { get; init; }
     
     /**
      * TaskCategory that the Task is associated with.

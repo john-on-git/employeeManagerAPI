@@ -1,20 +1,23 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManager.Models;
 
+[PrimaryKey(nameof(Id), nameof(UserId))]
 public class Employee
 {
     /**
      * Component of the composite key. Unique per user.
      */
-    [Key]
+    [Column(Order = 0)]
     public required int Id { get; init; }
     
     /**
      * ID of the Microsoft Identity Platform user managing this Employee.
      * Component of the composite key.
      */
-    [Key]
+    [Column(Order = 1)]
     [MaxLength(1000)]
     public required string UserId { get; init; }
     

@@ -1,3 +1,4 @@
+using System.Net;
 using EmployeeManager.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -12,8 +13,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddDbContext<EmployeeManagerContext>(opt =>
 {
-    opt.UseSqlServer("postgres://postgres:password1@localhost:5432/employeeManagerDB");
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+
+Console.WriteLine($"Will Connect to: {builder.Configuration.GetConnectionString("DefaultConnection")}");
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -33,146 +36,161 @@ var scopeRequiredByApi = app.Configuration["AzureAd:Scopes"] ?? "Employee.Manage
 /*
  * Endpoints for Employee CRUD.
  */
-app.MapGet("/employee", (context) =>
+app.MapGet("/employee", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
 {
-    // TODO
-    throw new NotImplementedException();
+    // get all the employees for this user
+    httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+    return dbContext.Employees.OrderBy(x => x.Name);
 })
-    .WithName("TODO")
+    .WithName("getEmployees")
     .RequireAuthorization();
 
 
-app.MapPost("/employee", (context) =>
+app.MapPost("/employee", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("createEmployee")
     .RequireAuthorization();
 
-app.MapPut("/employee", (context) =>
+app.MapPut("/employee", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("updateEmployee")
     .RequireAuthorization();
 
-app.MapDelete("/employee", (context) =>
+app.MapDelete("/employee", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("deleteEmployee")
     .RequireAuthorization();
 
 /*
  * Endpoints for simultaneously updating a Task & Employee.
  */
-app.MapPost("/assigned-task", (context) =>
+app.MapPost("/assigned-task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("assignUserTask")
     .RequireAuthorization();
-app.MapDelete("/assigned-task", (context) =>
+app.MapDelete("/assigned-task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("unassignUserTask")
     .RequireAuthorization();
 
 /*
  * Endpoints for Task CRUD.
  */
-app.MapGet("/task", (context) =>
+app.MapGet("/task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("getTasks")
     .RequireAuthorization();
 
 
-app.MapPost("/task", (context) =>
+app.MapPost("/task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("createTask")
     .RequireAuthorization();
 
-app.MapPut("/task", (context) =>
+app.MapPut("/task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("updateTasks")
     .RequireAuthorization();
 
-app.MapDelete("/task", (context) =>
+app.MapDelete("/task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("deleteTasks")
     .RequireAuthorization();
 
 /*
  * Endpoints for simultaneously updating a Task & TaskCategory.
  */
 
-app.MapPost("/categorise-task", (context) =>
+app.MapPost("/categorise-task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("assignTaskCategory")
     .RequireAuthorization();
-app.MapDelete("/categorise-task", (context) =>
+app.MapDelete("/categorise-task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("unassignTaskCategory")
     .RequireAuthorization();
 
 /*
  * Endpoints for TaskCategory CRUD.
  */
-app.MapGet("/task-category", (context) =>
+app.MapGet("/task-category", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
+    })
+    .WithName("getTaskCategory")
+    .RequireAuthorization();
+
+
+app.MapPost("/task-category", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+    {
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
     .WithName("TODO")
     .RequireAuthorization();
 
-
-app.MapPost("/task-category", (context) =>
+app.MapPut("/task-category", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
+    .WithName("createTaskCategory")
     .RequireAuthorization();
 
-app.MapPut("/task-category", (context) =>
+app.MapDelete("/task-category", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        // TODO
-        throw new NotImplementedException();
+        
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
-    .WithName("TODO")
-    .RequireAuthorization();
-
-app.MapDelete("/task-category", (context) =>
-    {
-        // TODO
-        throw new NotImplementedException();
-    })
-    .WithName("TODO")
+    .WithName("deleteTaskCategory")
     .RequireAuthorization();
     
 app.Run();

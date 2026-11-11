@@ -32,7 +32,7 @@ var app = builder.Build();
  * Programatically apply the migrations, this creates the tables for the schema
  * that we've defined code-first using EF.
  * We do this in code because we're using a containerised DB.
- * According to StackOverflow users, could cause issues in a real production app.
+ * According to StackOverflow users, this method could cause issues in a real production app.
 */
 using (var scope = app.Services.CreateScope())
 {

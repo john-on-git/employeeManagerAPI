@@ -1,29 +1,28 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmployeeManager.Models;
 
-public class Task
+public class WorkItem
 {
     /**
-     * Component of the composite key. Unique per user.
+     * Unique id.
      */
     [Key]
-    public required int Id { get; init; }
+    public int Id { get; init; }
 
     /**
      * Description of the Category.
      */
     [MaxLength(1000)]
     public required string Description { get; init; }
-    
+
     /**
      * Employee that the Task is assigned to.
      */
-    public required Employee? Employee { get; init; }
-    
+    public required Employee? AssignedTo { get; init; }
+
     /**
      * TaskCategory that the Task is associated with.
      */
-    public required TaskCategory Category { get; init; }
+    public required WorkItemCategory Category { get; init; }
 }

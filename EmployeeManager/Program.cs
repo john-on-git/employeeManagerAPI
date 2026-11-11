@@ -1,6 +1,7 @@
 using System.Net;
 using EmployeeManager.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.Resource;
@@ -20,7 +21,8 @@ builder.Services.AddDbContextPool<EmployeeManagerContext>(opt =>
         {
             // additional configuration goes here
             o.SetPostgresVersion(13, 0);
-        });
+        }
+    );
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -45,44 +47,108 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+else
+{
+    app.UseExceptionHandler(exceptionHandlerApp =>
+    {
+        exceptionHandlerApp.Run(async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            await context.Response.WriteAsync("Something went wrong.");
+        });
+    });
+}
 
 app.UseHttpsRedirection();
 
 var scopeRequiredByApi = app.Configuration["AzureAd:Scopes"] ?? "Employee.Manage";
 
 /*
+ *
+ *
+ *
+ * Testing, seed the DB.
+ */
+app.MapPost("/test-seed", async Task<IResult>(HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator) =>
+{
+    httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+    var userId = httpContext.User.GetObjectId();
+    if (userId != null)
+    {
+        ICollection<Employee> myEmployees = [
+            new() { UserId=userId, Name="Alice", Notes="On vacation in Wonderland.", WorkItems=(List<WorkItem>)[] },
+            new() { UserId=userId, Name="Bob", Notes="Remember to book his bricklaying course.", WorkItems=(List<WorkItem>)[] },
+            new() { UserId=userId, Name="Charlie", Notes="Away on business trip to Malbolge.", WorkItems=(List<WorkItem>)[] },
+            new() { UserId=userId, Name="Daniel", Notes="TODO process disciplinary for wearing white vans.", WorkItems=(List<WorkItem>)[] }
+        ];
+        
+        await dbContext.Employees.AddRangeAsync(myEmployees);
+        dbContext.SaveChanges();
+        return TypedResults.Created(linkGenerator.GetUriByName(
+            httpContext, "getEmployees"
+        ), myEmployees);
+    }
+    else
+    {
+        return TypedResults.StatusCode((int)HttpStatusCode.Unauthorized);
+    }
+})
+    .RequireAuthorization();
+
+/*
+ *
+ *
+ * 
  * Endpoints for Employee CRUD.
  */
-app.MapGet("/employee", (EmployeeManagerContext dbContext) =>
+app.MapGet("/employee/list", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
 {
+    httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
     // get all the employees for this user
-    // httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-    return dbContext.Employees.OrderBy(x => x.Name);
+    return TypedResults.Ok(dbContext.Employees.OrderBy(x => x.Name));
 })
     .WithName("getEmployees")
     .RequireAuthorization();
 
-
-app.MapPost("/employee", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapGet("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id) =>
     {
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
+        // get the employee with the matching ID, for this user
+        return TypedResults.Ok(dbContext.Employees.Find(id, httpContext.User.GetObjectId()));
+    })
+    .WithName("getEmployee")
+    .RequireAuthorization();
+
+
+app.MapPost("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] Employee employee) =>
+    {
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+
+        employee.UserId = httpContext.User.GetObjectId();
+        var created = dbContext.Add(employee).Entity;
+        dbContext.SaveChanges();
+
+        return TypedResults.Created(
+            linkGenerator.GetUriByName(
+                httpContext, "getEmployee",
+                new { id = created.Id }
+            ),
+            created
+        );
     })
     .WithName("createEmployee")
     .RequireAuthorization();
 
-app.MapPut("/employee", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapPut("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
     .WithName("updateEmployee")
     .RequireAuthorization();
 
-app.MapDelete("/employee", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
-    {
-        
+app.MapDelete("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+    { 
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
@@ -90,19 +156,20 @@ app.MapDelete("/employee", (HttpContext httpContext, EmployeeManagerContext dbCo
     .RequireAuthorization();
 
 /*
+ *
+ *
+ * 
  * Endpoints for simultaneously updating a Task & Employee.
  */
-app.MapPost("/assigned-task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapPost("/assigned-task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
     .WithName("assignUserTask")
     .RequireAuthorization();
-app.MapDelete("/assigned-task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapDelete("/assigned-task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
@@ -110,11 +177,13 @@ app.MapDelete("/assigned-task", (HttpContext httpContext, EmployeeManagerContext
     .RequireAuthorization();
 
 /*
+ *
+ *
+ * 
  * Endpoints for Task CRUD.
  */
-app.MapGet("/task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapGet("/task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
@@ -122,27 +191,24 @@ app.MapGet("/task", (HttpContext httpContext, EmployeeManagerContext dbContext) 
     .RequireAuthorization();
 
 
-app.MapPost("/task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapPost("/task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
     .WithName("createTask")
     .RequireAuthorization();
 
-app.MapPut("/task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapPut("/task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
     .WithName("updateTasks")
     .RequireAuthorization();
 
-app.MapDelete("/task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapDelete("/task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
@@ -150,20 +216,21 @@ app.MapDelete("/task", (HttpContext httpContext, EmployeeManagerContext dbContex
     .RequireAuthorization();
 
 /*
+ *
+ *
+ * 
  * Endpoints for simultaneously updating a Task & TaskCategory.
  */
 
-app.MapPost("/categorise-task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapPost("/categorise-task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
     .WithName("assignTaskCategory")
     .RequireAuthorization();
-app.MapDelete("/categorise-task", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapDelete("/categorise-task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
@@ -171,11 +238,13 @@ app.MapDelete("/categorise-task", (HttpContext httpContext, EmployeeManagerConte
     .RequireAuthorization();
 
 /*
+ *
+ *
+ * 
  * Endpoints for TaskCategory CRUD.
  */
-app.MapGet("/task-category", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapGet("/task-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
@@ -183,27 +252,24 @@ app.MapGet("/task-category", (HttpContext httpContext, EmployeeManagerContext db
     .RequireAuthorization();
 
 
-app.MapPost("/task-category", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapPost("/task-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
     .WithName("TODO")
     .RequireAuthorization();
 
-app.MapPut("/task-category", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapPut("/task-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
     .WithName("createTaskCategory")
     .RequireAuthorization();
 
-app.MapDelete("/task-category", (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapDelete("/task-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
-        
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented);
     })
@@ -211,3 +277,9 @@ app.MapDelete("/task-category", (HttpContext httpContext, EmployeeManagerContext
     .RequireAuthorization();
     
 app.Run();
+return;
+
+IResult ApiCatch(Exception e)
+{
+    return TypedResults.InternalServerError();     
+}

@@ -24,36 +24,41 @@ namespace EmployeeManager.Migrations
             modelBuilder.Entity("EmployeeManager.Models.Employee", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("integer")
-                        .HasColumnOrder(0);
+                        .HasColumnType("integer");
 
                     b.Property<string>("UserId")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnOrder(1);
 
-                    b.Property<string>("EmployeeNotes")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.HasKey("Id", "UserId");
 
-                    b.ToTable("Employees");
+                    b.ToTable("Employees", (string)null);
                 });
 
-            modelBuilder.Entity("EmployeeManager.Models.Task", b =>
+            modelBuilder.Entity("EmployeeManager.Models.WorkItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AssignedToId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("AssignedToUserId")
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("integer");
@@ -67,26 +72,19 @@ namespace EmployeeManager.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<int?>("EmployeeId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("EmployeeUserId")
-                        .HasColumnType("character varying(1000)");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("AssignedToId", "AssignedToUserId");
 
                     b.HasIndex("CategoryId", "CategoryUserId");
 
-                    b.HasIndex("EmployeeId", "EmployeeUserId");
-
-                    b.ToTable("Tasks");
+                    b.ToTable("WorkItems", (string)null);
                 });
 
-            modelBuilder.Entity("EmployeeManager.Models.TaskCategory", b =>
+            modelBuilder.Entity("EmployeeManager.Models.WorkItemCategory", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("integer")
-                        .HasColumnOrder(0);
+                        .HasColumnType("integer");
 
                     b.Property<string>("UserId")
                         .HasMaxLength(1000)
@@ -100,34 +98,34 @@ namespace EmployeeManager.Migrations
 
                     b.HasKey("Id", "UserId");
 
-                    b.ToTable("TaskCategories");
+                    b.ToTable("WorkItemCategories", (string)null);
                 });
 
-            modelBuilder.Entity("EmployeeManager.Models.Task", b =>
+            modelBuilder.Entity("EmployeeManager.Models.WorkItem", b =>
                 {
-                    b.HasOne("EmployeeManager.Models.TaskCategory", "Category")
-                        .WithMany("Tasks")
+                    b.HasOne("EmployeeManager.Models.Employee", "AssignedTo")
+                        .WithMany("WorkItems")
+                        .HasForeignKey("AssignedToId", "AssignedToUserId");
+
+                    b.HasOne("EmployeeManager.Models.WorkItemCategory", "Category")
+                        .WithMany("WorkItems")
                         .HasForeignKey("CategoryId", "CategoryUserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("EmployeeManager.Models.Employee", "Employee")
-                        .WithMany("Tasks")
-                        .HasForeignKey("EmployeeId", "EmployeeUserId");
+                    b.Navigation("AssignedTo");
 
                     b.Navigation("Category");
-
-                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("EmployeeManager.Models.Employee", b =>
                 {
-                    b.Navigation("Tasks");
+                    b.Navigation("WorkItems");
                 });
 
-            modelBuilder.Entity("EmployeeManager.Models.TaskCategory", b =>
+            modelBuilder.Entity("EmployeeManager.Models.WorkItemCategory", b =>
                 {
-                    b.Navigation("Tasks");
+                    b.Navigation("WorkItems");
                 });
 #pragma warning restore 612, 618
         }

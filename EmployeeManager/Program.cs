@@ -29,7 +29,9 @@ builder.Services.AddOpenApi();
 var app = builder.Build();
 
 /*
- * Programatically set up the DB. Required because we're using a containerised DB.
+ * Programatically apply the migrations, this creates the tables for the schema
+ * that we've defined code-first using EF.
+ * We do this in code because we're using a containerised DB.
  * According to StackOverflow users, could cause issues in a real production app.
 */
 using (var scope = app.Services.CreateScope())

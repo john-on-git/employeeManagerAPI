@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
+using Microsoft.Identity.Web;
 
 namespace EmployeeManager.Models;
 
@@ -14,11 +16,19 @@ public abstract class PerUserEntity
      * Unique ID.
      */
     [Key]
-    public int Id { get; init; }
+    public int Id { get; set; }
     /**
      * ID of the Microsoft Identity Platform user managing this entity.
      */
     [MaxLength(1000)]
     [JsonIgnore]
     public string? UserId { get; set; }
+    
+    /**
+     * <returns>True if the user is authorized to access the entity, otherwise false.</returns>
+     */
+    public bool VisibleToUser(ClaimsPrincipal user)
+    {
+        return UserId != user.GetObjectId();
+    }
 }

@@ -1,8 +1,10 @@
 using System.Net;
 using EmployeeManager.Models;
+using EmployeeManager.Models.ViewModel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.Resource;
 
@@ -86,14 +88,13 @@ app.MapPost("/test-seed", async Task<IResult>(HttpContext httpContext, EmployeeM
         
         await dbContext.Employees.AddRangeAsync(myEmployees);
         dbContext.SaveChanges();
-        return TypedResults.Created(linkGenerator.GetUriByName(
-            httpContext, "getEmployees"
-        ), myEmployees);
+        return TypedResults.Created(
+            linkGenerator.GetUriByName(httpContext, "getEmployees"),
+            (ICollection<EmployeeViewModel>)[..myEmployees.Select(x => new EmployeeViewModel(x))]
+        );
     }
-    else
-    {
-        return TypedResults.StatusCode((int)HttpStatusCode.Unauthorized);
-    }
+
+    return TypedResults.StatusCode((int)HttpStatusCode.Unauthorized);
 })
     .RequireAuthorization();
 
@@ -111,32 +112,41 @@ app.MapGet("/employee/list", IResult (HttpContext httpContext, EmployeeManagerCo
         dbContext.Employees
             .Where(x => x.UserId == httpContext.User.GetObjectId())
             .OrderBy(x => x.Name)
+            .Select(x => new EmployeeViewModel(x))
     );
 })
     .WithName("getEmployees")
     .RequireAuthorization();
 
 app.MapGet("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id) 
-    => DetailsPerUserEntity(httpContext, dbContext.Employees, id)
+    => DetailsPerUserEntity(httpContext, dbContext.Employees, id, x => new EmployeeViewModel(x))
 )
     .WithName("getEmployee")
     .RequireAuthorization();
 
 
-app.MapPost("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] Employee employee) =>
+app.MapPost("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] EmployeeViewModel employee) =>
     {
-        var ret = PostPerUserEntity(httpContext, linkGenerator, dbContext.Employees, employee);
-        dbContext.SaveChanges();
-        return ret;
+        return PostPerUserEntity(
+            httpContext,
+            dbContext,
+            linkGenerator, 
+            dbContext.Employees, 
+            employee.ToEFModel(httpContext.User),
+            x => new EmployeeViewModel(x)
+            );
     })
     .WithName("createEmployee")
     .RequireAuthorization();
 
-app.MapPut("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] Employee employee) =>
+app.MapPut("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] EmployeeViewModel employee) =>
     {
-        var ret = PutPerUserEntity(httpContext, linkGenerator, dbContext.Employees, employee);
-        dbContext.SaveChanges();
-        return ret;
+        return PutPerUserEntityDefaultUpdater(
+            httpContext,  dbContext,
+            dbContext.Employees, 
+            employee.ToEFModel(httpContext.User),
+            x => new EmployeeViewModel(x)
+        );
     })
     .WithName("updateEmployee")
     .RequireAuthorization();
@@ -176,35 +186,48 @@ app.MapDelete("/assigned-work-item", IResult (HttpContext httpContext, EmployeeM
  * Endpoints for Task CRUD.
  */
 
-app.MapPost("/work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItem workItem) =>
+app.MapPost("/work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItemViewModel workItemViewModel) =>
     {
-        if (workItem.IsValid())
-        {
-            var ret = PostPerUserEntity(httpContext, linkGenerator, dbContext.WorkItems, workItem);
-            dbContext.SaveChanges();
-            return ret;   
-        }
-        else
+        var workItem = workItemViewModel.ToEFModel(httpContext.User);
+        if (!workItem.IsValid())
         {
             return TypedResults.BadRequest("Invalid work item.");
         }
+        
+        return PostPerUserEntity(
+            httpContext,
+            dbContext,
+            linkGenerator, 
+            dbContext.WorkItems, 
+            workItem,
+            x => new WorkItemViewModel(x)
+        );
     })
     .WithName("createWorkItem")
     .RequireAuthorization();
 
-app.MapPut("/work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItem workItem) =>
+app.MapPut("/work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromBody] WorkItemViewModel workItemViewModel) =>
     {
-        if(workItem.IsValid())
+        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+        var workItem = workItemViewModel.ToEFModel(httpContext.User);
+        return PutPerUserEntity(httpContext, dbContext, dbContext.WorkItems, workItem.Id,
+        updaterDbContext =>
         {
-            httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-            var ret = PutPerUserEntity(httpContext, linkGenerator, dbContext.WorkItems, workItem);
-            dbContext.SaveChanges();
-            return ret;
-        }
-        else
-        {
-            return TypedResults.BadRequest("Invalid work item.");
-        }
+            Console.WriteLine($"workItem.UserId = {workItem.UserId}, {httpContext.User.GetObjectId()}");
+            var updated = updaterDbContext.Update(workItem);
+            // This endpoint only allows us to update the title & desc.
+            // (These don't get updated if set=null. Weird.)
+            if(workItem.AssignedTo != null)
+                updated.Property(item => item.AssignedTo).IsModified = false;
+            if(workItem.Category != null)
+                updated.Property(item => item.Category).IsModified = false;
+            // these too, but they're already impossible to modify
+            // ret.Property(item => item.Id).IsModified = false;
+            // ret.Property(item => item.UserId).IsModified = false;
+            return updated.Entity;
+        },
+        x => new WorkItemViewModel(x)
+        );
     })
     .WithName("updateWorkItem")
     .RequireAuthorization();
@@ -248,37 +271,65 @@ app.MapDelete("/categorise-work-item", IResult (HttpContext httpContext, Employe
 app.MapGet("/work-item-category/list", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        return TypedResults.Ok(
-            dbContext.WorkItemCategories
-                .Where(x => x.UserId == httpContext.User.GetObjectId())
-                .ToArray()
-        );
+
+        ICollection<WorkItemCategoryViewModel> categories = [..((ICollection<WorkItemCategory>)
+        [
+            // get the user-defined categories
+            .. dbContext.WorkItemCategories
+                .Where(x => x.UserId == httpContext.User.GetObjectId()),
+            // get the unassigned items and build a fake category
+            new WorkItemCategory
+            {
+                Id = -1,
+                Name = "UNASSIGNED",
+                WorkItems = [.. dbContext.WorkItems.Where(x => x.Category == null)]
+            }
+        ]).Select(x => new WorkItemCategoryViewModel(x))];
+        
+        return TypedResults.Ok(categories);
     })
     .WithName("listWorkItemCategory")
     .RequireAuthorization();
 
 app.MapGet("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id)
-    => DetailsPerUserEntity(httpContext, dbContext.WorkItemCategories, id)
+    => DetailsPerUserEntity(httpContext, dbContext.WorkItemCategories, id, x => new WorkItemCategoryViewModel(x))
 )
     .WithName("getWorkItemCategory")
     .RequireAuthorization();
 
 
-app.MapPost("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItemCategory category) =>
+app.MapPost("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItemCategoryViewModel category) =>
     {
-        var ret = PostPerUserEntity(httpContext, linkGenerator, dbContext.WorkItemCategories, category);
-        dbContext.SaveChanges();
-        return ret;
+        if (category.Id == -1 || category.Name == "Unassigned")
+        {
+            return TypedResults.BadRequest("Reserved work item category.");
+        }
+        
+        return PostPerUserEntity(
+            httpContext, 
+            dbContext,
+            linkGenerator, 
+            dbContext.WorkItemCategories, 
+            category.ToEFModel(httpContext.User),
+            x => new WorkItemCategoryViewModel(x)
+        );
     })
     .WithName("createWorkItemCategory")
     .RequireAuthorization();
 
-app.MapPut("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItemCategory category) =>
+app.MapPut("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItemCategoryViewModel category) =>
     {
+        if (category.Id == -1 || category.Name == "UNASSIGNED")
+        {
+            return TypedResults.BadRequest("Reserved work item category.");
+        }
         
-        var ret = PutPerUserEntity(httpContext, linkGenerator, dbContext.WorkItemCategories, category);
-        dbContext.SaveChanges();
-        return ret;
+        return PutPerUserEntityDefaultUpdater(
+            httpContext, dbContext,
+            dbContext.WorkItemCategories, 
+            category.ToEFModel(httpContext.User),
+            x => new WorkItemCategoryViewModel(x)
+        );
     })
     .WithName("updateWorkItemCategory")
     .RequireAuthorization();
@@ -292,22 +343,21 @@ app.MapDelete("/work-item-category", IResult (HttpContext httpContext, EmployeeM
 app.Run();
 return;
 
-IResult DetailsPerUserEntity<T>(HttpContext httpContext, DbSet<T> dbSet, int id) where T : PerUserEntity
+IResult DetailsPerUserEntity<TEntity,TView>(HttpContext httpContext, DbSet<TEntity> dbSet, int id, Func<TEntity,TView> mapper) where TEntity : PerUserEntity where TView: ViewModel<TEntity>
 {
     httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
     // get the employee with the matching ID, if they're associated with user
     var found = dbSet.Find(id);
 
-    return found == null || found.VisibleToUser(httpContext.User)
-        ? TypedResults.Ok(found) // respond with it if it exists and the user's authorized to access it
+    return found != null && found.VisibleToUser(httpContext.User)
+        ? TypedResults.Ok(mapper(found)) // respond with it if it exists and the user's authorized to access it
         : TypedResults.NotFound(); // otherwise respond not found. Even if they're unauthorized, we don't want them to know it exists.
 }
 
 /*
  * Insert a PerUserEntity into the DB, checking authorization etc.
- * Caller is responsible for calling SaveChanges.
  */
-IResult PostPerUserEntity<T> ( HttpContext httpContext, LinkGenerator linkGenerator, DbSet<T> dbSet, T x) where T : PerUserEntity
+IResult PostPerUserEntity<TEntity,TView> ( HttpContext httpContext, DbContext dbContext, LinkGenerator linkGenerator, DbSet<TEntity> dbSet, TEntity x, Func<TEntity,TView> mapper) where TEntity : PerUserEntity where TView: ViewModel<TEntity>
 {
     httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
 
@@ -318,43 +368,55 @@ IResult PostPerUserEntity<T> ( HttpContext httpContext, LinkGenerator linkGenera
         
     x.UserId = httpContext.User.GetObjectId();
     var created = dbSet.Add(x).Entity;
-
+    dbContext.SaveChanges();
+    
     return TypedResults.Created(
         linkGenerator.GetUriByName(
             httpContext, "getEmployee",
             new { id = created.Id }
         ),
-        created
+        mapper(created)
     );
 }
 
 /*
  * Update a PerUserEntity in the DB, checking authorization etc.
- * Caller is responsible for calling SaveChanges.
  */
-IResult PutPerUserEntity<T> ( HttpContext httpContext, LinkGenerator linkGenerator, DbSet<T> dbSet, T x) where T : PerUserEntity
+IResult PutPerUserEntity<TEntity,TView> ( HttpContext httpContext, DbContext dbContext, DbSet<TEntity> dbSet, int id, Func<DbSet<TEntity>, TEntity> updater, Func<TEntity, TView> mapper) where TEntity : PerUserEntity where TView : ViewModel<TEntity>
 {
     httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
 
     // only perform the update if the user is authorized to access this entity
-    var found = dbSet.Find(x.Id);
-    if (found != null && found.VisibleToUser(httpContext.User))
+    var found = dbSet.Find(id);
+    
+    if (found == null || !found.VisibleToUser(httpContext.User))
     {
-        x.UserId = found.UserId;
-        var updated = dbSet.Update(x).Entity;
-        
-        return TypedResults.Ok(updated);
-    }
-    else
-    {
-        // otherwise the entity doesn't exist (from their perspective).
         return TypedResults.NotFound();
     }
+    
+    // stop tracking found, because
+    // the updater might also try to track the entity
+    dbContext.Entry(found).State = EntityState.Detached;
+        
+    var ret = TypedResults.Ok(mapper(updater(dbSet)));
+    dbContext.SaveChanges();
+    return ret;
+
+    // otherwise the entity doesn't exist (from their perspective).
 }
+
+IResult PutPerUserEntityDefaultUpdater<TEntity, TView>(HttpContext httpContext, DbContext dbContext, DbSet<TEntity> dbSet, TEntity x, Func<TEntity, TView> mapper) where TEntity : PerUserEntity where TView : ViewModel<TEntity>
+{
+    return PutPerUserEntity(
+        httpContext, dbContext, dbSet, x.Id,
+    updaterDbSet => updaterDbSet.Update(x).Entity,
+        mapper
+    );
+}
+
 
 /*
  * Update a PerUserEntity in the DB, checking authorization etc.
- * Caller does not need to call SaveChanges.
  */
 IResult DeletePerUserEntity<T>(HttpContext httpContext, DbSet<T> dbSet, int id) where T : PerUserEntity
 {

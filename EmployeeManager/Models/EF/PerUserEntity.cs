@@ -29,6 +29,6 @@ public abstract class PerUserEntity
      */
     public bool VisibleToUser(ClaimsPrincipal user)
     {
-        return UserId != user.GetObjectId();
+        return UserId == user.GetObjectId();
     }
 }

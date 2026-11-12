@@ -5,7 +5,12 @@ namespace EmployeeManager.Models;
 public class WorkItem : PerUserEntity
 {
     /**
-     * Description of the Category.
+     * Tile for the work item.
+     */
+    [MaxLength(100)]
+    public required string Title { get; init; }
+    /**
+     * Description of the work item.
      */
     [MaxLength(1000)]
     public required string Description { get; init; }

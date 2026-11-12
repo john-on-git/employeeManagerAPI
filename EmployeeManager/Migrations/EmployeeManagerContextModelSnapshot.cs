@@ -24,12 +24,10 @@ namespace EmployeeManager.Migrations
             modelBuilder.Entity("EmployeeManager.Models.Employee", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
 
-                    b.Property<string>("UserId")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnOrder(1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -41,9 +39,13 @@ namespace EmployeeManager.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.HasKey("Id", "UserId");
+                    b.Property<string>("UserId")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
-                    b.ToTable("Employees", (string)null);
+                    b.HasKey("Id");
+
+                    b.ToTable("Employees");
                 });
 
             modelBuilder.Entity("EmployeeManager.Models.WorkItem", b =>
@@ -57,15 +59,8 @@ namespace EmployeeManager.Migrations
                     b.Property<int?>("AssignedToId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("AssignedToUserId")
-                        .HasColumnType("character varying(1000)");
-
                     b.Property<int>("CategoryId")
                         .HasColumnType("integer");
-
-                    b.Property<string>("CategoryUserId")
-                        .IsRequired()
-                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -74,42 +69,44 @@ namespace EmployeeManager.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AssignedToId", "AssignedToUserId");
+                    b.HasIndex("AssignedToId");
 
-                    b.HasIndex("CategoryId", "CategoryUserId");
+                    b.HasIndex("CategoryId");
 
-                    b.ToTable("WorkItems", (string)null);
+                    b.ToTable("WorkItems");
                 });
 
             modelBuilder.Entity("EmployeeManager.Models.WorkItemCategory", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
 
-                    b.Property<string>("UserId")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnOrder(1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.HasKey("Id", "UserId");
+                    b.Property<string>("UserId")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
-                    b.ToTable("WorkItemCategories", (string)null);
+                    b.HasKey("Id");
+
+                    b.ToTable("WorkItemCategories");
                 });
 
             modelBuilder.Entity("EmployeeManager.Models.WorkItem", b =>
                 {
                     b.HasOne("EmployeeManager.Models.Employee", "AssignedTo")
                         .WithMany("WorkItems")
-                        .HasForeignKey("AssignedToId", "AssignedToUserId");
+                        .HasForeignKey("AssignedToId");
 
                     b.HasOne("EmployeeManager.Models.WorkItemCategory", "Category")
                         .WithMany("WorkItems")
-                        .HasForeignKey("CategoryId", "CategoryUserId")
+                        .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

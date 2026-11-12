@@ -79,7 +79,10 @@ app.MapPost("/test-seed", async Task<IResult>(HttpContext httpContext, EmployeeM
             new() { UserId=userId, Name="Alice", Notes="On vacation in Wonderland.", WorkItems=(List<WorkItem>)[] },
             new() { UserId=userId, Name="Bob", Notes="Remember to book his bricklaying course.", WorkItems=(List<WorkItem>)[] },
             new() { UserId=userId, Name="Charlie", Notes="Away on business trip to Malbolge.", WorkItems=(List<WorkItem>)[] },
-            new() { UserId=userId, Name="Daniel", Notes="TODO process disciplinary for wearing white vans.", WorkItems=(List<WorkItem>)[] }
+            new() { UserId=userId, Name="Daniel", Notes="TODO process disciplinary for wearing white vans.", WorkItems=(List<WorkItem>)[]},
+            
+            new() { UserId=$"not {userId}", Name="Xander", Notes="You're not authorised to access this employee.", WorkItems=(List<WorkItem>)[]},
+            new() { UserId=$"not {userId}", Name="Zoe", Notes="Or this one.", WorkItems=(List<WorkItem>)[]}
         ];
         
         await dbContext.Employees.AddRangeAsync(myEmployees);
@@ -105,7 +108,11 @@ app.MapGet("/employee/list", IResult (HttpContext httpContext, EmployeeManagerCo
 {
     httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
     // get all the employees for this user
-    return TypedResults.Ok(dbContext.Employees.OrderBy(x => x.Name));
+    return TypedResults.Ok(
+        dbContext.Employees
+            .Where(x => x.UserId == httpContext.User.GetObjectId())
+            .OrderBy(x => x.Name)
+    );
 })
     .WithName("getEmployees")
     .RequireAuthorization();
@@ -113,8 +120,12 @@ app.MapGet("/employee/list", IResult (HttpContext httpContext, EmployeeManagerCo
 app.MapGet("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id) =>
     {
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        // get the employee with the matching ID, for this user
-        return TypedResults.Ok(dbContext.Employees.Find(id, httpContext.User.GetObjectId()));
+        // get the employee with the matching ID, if they're associated with user
+        var found = dbContext.Employees.Find(id);
+
+        return found == null || found.UserId != httpContext.User.GetObjectId()
+            ? TypedResults.NotFound() // if the record doesn't exist, or the user's not authorized to view it, it doesn't exist
+            : TypedResults.Ok(found); // otherwise respond with it
     })
     .WithName("getEmployee")
     .RequireAuthorization();

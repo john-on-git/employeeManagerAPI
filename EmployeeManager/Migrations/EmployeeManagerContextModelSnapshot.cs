@@ -59,11 +59,15 @@ namespace EmployeeManager.Migrations
                     b.Property<int?>("AssignedToId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("CategoryId")
+                    b.Property<int?>("CategoryId")
                         .HasColumnType("integer");
 
                     b.Property<string>("Description")
                         .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("UserId")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
@@ -106,9 +110,7 @@ namespace EmployeeManager.Migrations
 
                     b.HasOne("EmployeeManager.Models.WorkItemCategory", "Category")
                         .WithMany("WorkItems")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CategoryId");
 
                     b.Navigation("AssignedTo");
 

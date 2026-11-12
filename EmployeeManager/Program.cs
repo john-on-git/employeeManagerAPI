@@ -1,12 +1,10 @@
 using System.Net;
-using System.Reflection;
 using EmployeeManager.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.Resource;
-using Microsoft.IdentityModel.Protocols.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -143,11 +141,9 @@ app.MapPut("/employee", IResult (HttpContext httpContext, EmployeeManagerContext
     .WithName("updateEmployee")
     .RequireAuthorization();
 
-app.MapDelete("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id) =>
-    { 
-        var ret = DeletePerUserEntity(httpContext, dbContext.Employees, id);
-        return ret;
-    })
+app.MapDelete("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id) 
+        => DeletePerUserEntity(httpContext, dbContext.Employees, id)
+    )
     .WithName("deleteEmployee")
     .RequireAuthorization();
 
@@ -157,19 +153,20 @@ app.MapDelete("/employee", IResult (HttpContext httpContext, EmployeeManagerCont
  * 
  * Endpoints for simultaneously updating a Task & Employee.
  */
-app.MapPost("/assigned-task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId, [FromBody] int employeeId) =>
+app.MapPost("/assigned-work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId, [FromBody] int employeeId) =>
     {
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
     })
-    .WithName("assignUserTask")
+    .WithName("assignUserWorkItem")
     .RequireAuthorization();
-app.MapDelete("/assigned-task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId) =>
+
+app.MapDelete("/assigned-work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId) =>
     {
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
     })
-    .WithName("unassignUserTask")
+    .WithName("unassignUserWorkItem")
     .RequireAuthorization();
 
 /*
@@ -179,71 +176,91 @@ app.MapDelete("/assigned-task", IResult (HttpContext httpContext, EmployeeManage
  * Endpoints for Task CRUD.
  */
 
-app.MapPost("/task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapPost("/work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItem workItem) =>
     {
-        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
+        if (workItem.IsValid())
+        {
+            var ret = PostPerUserEntity(httpContext, linkGenerator, dbContext.WorkItems, workItem);
+            dbContext.SaveChanges();
+            return ret;   
+        }
+        else
+        {
+            return TypedResults.BadRequest("Invalid work item.");
+        }
     })
-    .WithName("createTask")
+    .WithName("createWorkItem")
     .RequireAuthorization();
 
-app.MapPut("/task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapPut("/work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItem workItem) =>
     {
-        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
+        if(workItem.IsValid())
+        {
+            httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
+            var ret = PutPerUserEntity(httpContext, linkGenerator, dbContext.WorkItems, workItem);
+            dbContext.SaveChanges();
+            return ret;
+        }
+        else
+        {
+            return TypedResults.BadRequest("Invalid work item.");
+        }
     })
-    .WithName("updateTasks")
+    .WithName("updateWorkItem")
     .RequireAuthorization();
 
-app.MapDelete("/task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
-    {
-        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
-    })
-    .WithName("deleteTasks")
+app.MapDelete("/work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id)
+    => DeletePerUserEntity(httpContext, dbContext.WorkItems, id)
+)
+    .WithName("deleteWorkItem")
     .RequireAuthorization();
 
 /*
  *
  *
  * 
- * Endpoints for simultaneously updating a Task & TaskCategory.
+ * Endpoints for simultaneously updating a Task & WorkItemCategory.
  */
 
-app.MapPost("/categorise-task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId, [FromBody] int categoryId) =>
+app.MapPost("/categorise-work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId, [FromBody] int categoryId) =>
     {
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
     })
-    .WithName("assignTaskCategory")
+    .WithName("assignWorkItemCategory")
     .RequireAuthorization();
-app.MapDelete("/categorise-task", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId) =>
+
+app.MapDelete("/categorise-work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId) =>
     {
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
     })
-    .WithName("unassignTaskCategory")
+    .WithName("unassignWorkItemCategory")
     .RequireAuthorization();
 
 /*
  *
  *
  * 
- * Endpoints for TaskCategory CRUD.
+ * Endpoints for WorkItemCategory CRUD.
  */
 
 app.MapGet("/work-item-category/list", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
+        return TypedResults.Ok(
+            dbContext.WorkItemCategories
+                .Where(x => x.UserId == httpContext.User.GetObjectId())
+                .ToArray()
+        );
     })
-    .WithName("listTaskCategory")
+    .WithName("listWorkItemCategory")
     .RequireAuthorization();
 
 app.MapGet("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id)
     => DetailsPerUserEntity(httpContext, dbContext.WorkItemCategories, id)
 )
-    .WithName("getTaskCategory")
+    .WithName("getWorkItemCategory")
     .RequireAuthorization();
 
 
@@ -253,24 +270,23 @@ app.MapPost("/work-item-category", IResult (HttpContext httpContext, EmployeeMan
         dbContext.SaveChanges();
         return ret;
     })
-    .WithName("TODO")
+    .WithName("createWorkItemCategory")
     .RequireAuthorization();
 
 app.MapPut("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItemCategory category) =>
     {
+        
         var ret = PutPerUserEntity(httpContext, linkGenerator, dbContext.WorkItemCategories, category);
         dbContext.SaveChanges();
         return ret;
     })
-    .WithName("createTaskCategory")
+    .WithName("updateWorkItemCategory")
     .RequireAuthorization();
 
-app.MapDelete("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id) =>
-    { 
-        var ret = DeletePerUserEntity(httpContext, dbContext.WorkItemCategories, id);
-        return ret;
-    })
-    .WithName("deleteTaskCategory")
+app.MapDelete("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id) 
+        => DeletePerUserEntity(httpContext, dbContext.WorkItemCategories, id)
+    )
+    .WithName("deleteWorkItemCategory")
     .RequireAuthorization();
     
 app.Run();

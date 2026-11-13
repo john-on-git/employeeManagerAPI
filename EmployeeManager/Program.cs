@@ -2,10 +2,13 @@ using System.Net;
 using EmployeeManager.Models.EF;
 using EmployeeManager.Models.ViewModel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.Resource;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,17 +49,35 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
-else
+
+app.UseExceptionHandler(exceptionHandlerApp =>
 {
-    app.UseExceptionHandler(exceptionHandlerApp =>
+    exceptionHandlerApp.Run(async context =>
     {
-        exceptionHandlerApp.Run(async context =>
+        var exception = context.Features.GetRequiredFeature<IExceptionHandlerFeature>().Error;
+        
+        // try to a more specific error code by inspecting the error 
+        if (exception.InnerException is PostgresException pgException)
         {
+            context.Response.StatusCode = pgException.SqlState switch
+            {
+                "23000" or "23001" or "23502" or "23503" or "23505" or "23514" or "23P01" => StatusCodes.Status422UnprocessableEntity,
+                _ => StatusCodes.Status500InternalServerError
+            };
+        }
+        else
+        {
+            // default, 500
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            await context.Response.WriteAsync("Something went wrong.");
-        });
+        }
+        
+        await context.Response.WriteAsync(
+            app.Environment.IsDevelopment() 
+                ? exception.ToString()
+                : "Something went wrong."
+        );
     });
-}
+});
 
 app.UseHttpsRedirection();
 
@@ -125,21 +146,21 @@ app.MapGet("/employee", IResult (HttpContext httpContext, EmployeeManagerContext
 
 app.MapPost("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] EmployeeViewModel employee) =>
     {
-        return PostPerUserEntity(
+        return CreatePerUserEntity(
             httpContext,
             dbContext,
             linkGenerator, 
             dbContext.Employees, 
             employee.ToEFModel(httpContext.User),
             x => new EmployeeViewModel(x)
-            );
+        );
     })
     .WithName("createEmployee")
     .RequireAuthorization();
 
 app.MapPut("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] EmployeeViewModel employee) =>
     {
-        return PutPerUserEntityDefaultUpdater(
+        return UpdatePerUserEntity(
             httpContext,  dbContext,
             dbContext.Employees, 
             employee.ToEFModel(httpContext.User),
@@ -159,28 +180,6 @@ app.MapDelete("/employee", IResult (HttpContext httpContext, EmployeeManagerCont
  *
  *
  * 
- * Endpoints for simultaneously updating a Task & Employee.
- */
-app.MapPost("/assigned-work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId, [FromBody] int employeeId) =>
-    {
-        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
-    })
-    .WithName("assignUserWorkItem")
-    .RequireAuthorization();
-
-app.MapDelete("/assigned-work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId) =>
-    {
-        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
-    })
-    .WithName("unassignUserWorkItem")
-    .RequireAuthorization();
-
-/*
- *
- *
- * 
  * Endpoints for Task CRUD.
  */
 
@@ -192,7 +191,7 @@ app.MapPost("/work-item", IResult (HttpContext httpContext, EmployeeManagerConte
             return TypedResults.BadRequest("Invalid work item.");
         }
         
-        return PostPerUserEntity(
+        return CreatePerUserEntity(
             httpContext,
             dbContext,
             linkGenerator, 
@@ -208,24 +207,7 @@ app.MapPut("/work-item", IResult (HttpContext httpContext, EmployeeManagerContex
     {
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
         var workItem = workItemViewModel.ToEFModel(httpContext.User);
-        return PutPerUserEntity(httpContext, dbContext, dbContext.WorkItems, workItem.Id,
-        updaterDbContext =>
-        {
-            Console.WriteLine($"workItem.UserId = {workItem.UserId}, {httpContext.User.GetObjectId()}");
-            var updated = updaterDbContext.Update(workItem);
-            // This endpoint only allows us to update the title & desc.
-            // (These don't get updated if set=null. Weird.)
-            if(workItem.AssignedTo != null)
-                updated.Property(item => item.AssignedTo).IsModified = false;
-            if(workItem.Category != null)
-                updated.Property(item => item.Category).IsModified = false;
-            // these too, but they're already impossible to modify
-            // ret.Property(item => item.Id).IsModified = false;
-            // ret.Property(item => item.UserId).IsModified = false;
-            return updated.Entity;
-        },
-        x => new WorkItemViewModel(x)
-        );
+        return UpdatePerUserEntity(httpContext, dbContext, dbContext.WorkItems, workItem, x => new WorkItemViewModel(x));
     })
     .WithName("updateWorkItem")
     .RequireAuthorization();
@@ -234,29 +216,6 @@ app.MapDelete("/work-item", IResult (HttpContext httpContext, EmployeeManagerCon
     => DeletePerUserEntity(httpContext, dbContext.WorkItems, id)
 )
     .WithName("deleteWorkItem")
-    .RequireAuthorization();
-
-/*
- *
- *
- * 
- * Endpoints for simultaneously updating a Task & WorkItemCategory.
- */
-
-app.MapPost("/categorise-work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId, [FromBody] int categoryId) =>
-    {
-        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
-    })
-    .WithName("assignWorkItemCategory")
-    .RequireAuthorization();
-
-app.MapDelete("/categorise-work-item", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int taskId) =>
-    {
-        httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
-        return TypedResults.StatusCode((int)HttpStatusCode.NotImplemented); // TODO
-    })
-    .WithName("unassignWorkItemCategory")
     .RequireAuthorization();
 
 /*
@@ -303,7 +262,7 @@ app.MapPost("/work-item-category", IResult (HttpContext httpContext, EmployeeMan
             return TypedResults.BadRequest("Reserved work item category.");
         }
         
-        return PostPerUserEntity(
+        return CreatePerUserEntity(
             httpContext, 
             dbContext,
             linkGenerator, 
@@ -322,7 +281,7 @@ app.MapPut("/work-item-category", IResult (HttpContext httpContext, EmployeeMana
             return TypedResults.BadRequest("Reserved work item category.");
         }
         
-        return PutPerUserEntityDefaultUpdater(
+        return UpdatePerUserEntity(
             httpContext, dbContext,
             dbContext.WorkItemCategories, 
             category.ToEFModel(httpContext.User),
@@ -355,7 +314,7 @@ IResult DetailsPerUserEntity<TEntity,TView>(HttpContext httpContext, DbSet<TEnti
 /*
  * Insert a PerUserEntity into the DB, checking authorization etc.
  */
-IResult PostPerUserEntity<TEntity,TView> ( HttpContext httpContext, DbContext dbContext, LinkGenerator linkGenerator, DbSet<TEntity> dbSet, TEntity x, Func<TEntity,TView> mapper) where TEntity : PerUserEntity where TView: ViewModel<TEntity>
+IResult CreatePerUserEntity<TEntity,TView> ( HttpContext httpContext, DbContext dbContext, LinkGenerator linkGenerator, DbSet<TEntity> dbSet, TEntity x, Func<TEntity,TView> mapper) where TEntity : PerUserEntity where TView: ViewModel<TEntity>
 {
     httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
 
@@ -380,36 +339,23 @@ IResult PostPerUserEntity<TEntity,TView> ( HttpContext httpContext, DbContext db
 /*
  * Update a PerUserEntity in the DB, checking authorization etc.
  */
-IResult PutPerUserEntity<TEntity,TView> ( HttpContext httpContext, DbContext dbContext, DbSet<TEntity> dbSet, int id, Func<DbSet<TEntity>, TEntity> updater, Func<TEntity, TView> mapper) where TEntity : PerUserEntity where TView : ViewModel<TEntity>
+IResult UpdatePerUserEntity<TEntity,TView> ( HttpContext httpContext, DbContext dbContext, DbSet<TEntity> dbSet, TEntity entity, Func<TEntity, TView> mapper) where TEntity : PerUserEntity where TView : ViewModel<TEntity>
 {
     httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
 
     // only perform the update if the user is authorized to access this entity
-    var found = dbSet.Find(id);
-    
+    var found = dbSet.Find(entity.Id);
     if (found == null || !found.VisibleToUser(httpContext.User))
     {
         return TypedResults.NotFound();
     }
-    
-    // stop tracking found, because
-    // the updater might also try to track the entity
     dbContext.Entry(found).State = EntityState.Detached;
         
-    var ret = TypedResults.Ok(mapper(updater(dbSet)));
+    var ret = TypedResults.Ok(mapper(dbSet.Update(entity).Entity));
     dbContext.SaveChanges();
     return ret;
 
     // otherwise the entity doesn't exist (from their perspective).
-}
-
-IResult PutPerUserEntityDefaultUpdater<TEntity, TView>(HttpContext httpContext, DbContext dbContext, DbSet<TEntity> dbSet, TEntity x, Func<TEntity, TView> mapper) where TEntity : PerUserEntity where TView : ViewModel<TEntity>
-{
-    return PutPerUserEntity(
-        httpContext, dbContext, dbSet, x.Id,
-    updaterDbSet => updaterDbSet.Update(x).Entity,
-        mapper
-    );
 }
 
 

@@ -21,7 +21,6 @@ public abstract class PerUserEntity
      * ID of the Microsoft Identity Platform user managing this entity.
      */
     [MaxLength(1000)]
-    [JsonIgnore]
     public virtual string? UserId { get; set; }
     
     /**

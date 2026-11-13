@@ -1,18 +1,16 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Claims;
 using System.Text.Json.Serialization;
 using EmployeeManager.Models.EF;
-using Microsoft.Identity.Web;
 
 namespace EmployeeManager.Models.ViewModel;
 
 [method: SetsRequiredMembers]
 [method: JsonConstructor]
-public class WorkItemViewModel(int id, string title, string description) : ViewModel<WorkItem>(id)
+public class WorkItemViewModel(int id, string title, string description, int? assignedToId, int? categoryId) : ViewModel<WorkItem>(id)
 {
     [method: SetsRequiredMembers]
-    public WorkItemViewModel(WorkItem workItem) : this(workItem.Id, workItem.Title, workItem.Description)
+    public WorkItemViewModel(WorkItem workItem) : this(workItem.Id, workItem.Title, workItem.Description, workItem.AssignedToId, workItem.CategoryId)
     {
     }
     
@@ -20,6 +18,10 @@ public class WorkItemViewModel(int id, string title, string description) : ViewM
     public virtual required string Title { get; init; } = title;
     [MaxLength(1000)]
     public virtual required string Description { get; init; } = description;
+
+    public virtual required int? AssignedToId { get; init; } = assignedToId;
+
+    public virtual required int? CategoryId { get; init; } = categoryId;
     
     public override WorkItem ToEFModel(string? userId)
     {
@@ -29,7 +31,9 @@ public class WorkItemViewModel(int id, string title, string description) : ViewM
             UserId=userId,
             Title=Title,
             Description=Description,
+            AssignedToId = AssignedToId,
             AssignedTo=null,
+            CategoryId = CategoryId,
             Category=null
         };
     }

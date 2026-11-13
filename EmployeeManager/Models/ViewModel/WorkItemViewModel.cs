@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
+using EmployeeManager.Models.EF;
 using Microsoft.Identity.Web;
 
 namespace EmployeeManager.Models.ViewModel;
@@ -16,16 +17,16 @@ public class WorkItemViewModel(int id, string title, string description) : ViewM
     }
     
     [MaxLength(100)]
-    public required string Title { get; init; } = title;
+    public virtual required string Title { get; init; } = title;
     [MaxLength(1000)]
-    public required string Description { get; init; } = description;
+    public virtual required string Description { get; init; } = description;
     
-    public override WorkItem ToEFModel(ClaimsPrincipal user)
+    public override WorkItem ToEFModel(string? userId)
     {
         return new WorkItem
         {
             Id=Id,
-            UserId=user.GetObjectId(),
+            UserId=userId,
             Title=Title,
             Description=Description,
             AssignedTo=null,

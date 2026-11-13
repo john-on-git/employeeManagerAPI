@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Microsoft.Identity.Web;
 
-namespace EmployeeManager.Models;
+namespace EmployeeManager.Models.EF;
 
 public abstract class PerUserEntity
 {
@@ -16,18 +16,18 @@ public abstract class PerUserEntity
      * Unique ID.
      */
     [Key]
-    public int Id { get; set; }
+    public virtual int Id { get; init; }
     /**
      * ID of the Microsoft Identity Platform user managing this entity.
      */
     [MaxLength(1000)]
     [JsonIgnore]
-    public string? UserId { get; set; }
+    public virtual string? UserId { get; set; }
     
     /**
      * <returns>True if the user is authorized to access the entity, otherwise false.</returns>
      */
-    public bool VisibleToUser(ClaimsPrincipal user)
+    public virtual bool VisibleToUser(ClaimsPrincipal user)
     {
         return UserId == user.GetObjectId();
     }

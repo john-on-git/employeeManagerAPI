@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
+using EmployeeManager.Models.EF;
 using Microsoft.Identity.Web;
 
 namespace EmployeeManager.Models.ViewModel;
@@ -18,12 +19,12 @@ public class EmployeeViewModel(int id, string name, string notes) : ViewModel<Em
     [MaxLength(1000)]
     public required string Notes { get; init; } = notes;
     
-    public override Employee ToEFModel(ClaimsPrincipal user)
+    public override Employee ToEFModel(string? userId)
     {
         return new Employee
         {
             Id=Id, 
-            UserId=user.GetObjectId(),
+            UserId=userId,
             Name=Name,
             Notes=Notes
         };

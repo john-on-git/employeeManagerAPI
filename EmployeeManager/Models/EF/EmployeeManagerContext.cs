@@ -1,6 +1,6 @@
 using Microsoft.IdentityModel.Protocols.Configuration;
 
-namespace EmployeeManager.Models;
+namespace EmployeeManager.Models.EF;
 using Microsoft.EntityFrameworkCore;
 
 public class EmployeeManagerContext(DbContextOptions options) : DbContext(options)

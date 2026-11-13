@@ -1,10 +1,9 @@
 using System.Net;
-using EmployeeManager.Models;
+using EmployeeManager.Models.EF;
 using EmployeeManager.Models.ViewModel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.Resource;
 
@@ -21,7 +20,6 @@ builder.Services.AddDbContextPool<EmployeeManagerContext>(opt =>
         o =>
         {
             // additional configuration goes here
-            o.SetPostgresVersion(13, 0);
         }
     );
 });

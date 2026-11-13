@@ -108,7 +108,7 @@ app.MapPost("/test-seed", async Task<IResult>(HttpContext httpContext, EmployeeM
         await dbContext.Employees.AddRangeAsync(myEmployees);
         dbContext.SaveChanges();
         return TypedResults.Created(
-            linkGenerator.GetUriByName(httpContext, "getEmployees"),
+            linkGenerator.GetUriByName(httpContext, "getAllEmployee"),
             (ICollection<EmployeeViewModel>)[..myEmployees.Select(x => new EmployeeViewModel(x))]
         );
     }
@@ -123,18 +123,19 @@ app.MapPost("/test-seed", async Task<IResult>(HttpContext httpContext, EmployeeM
  * 
  * Endpoints for Employee CRUD.
  */
-app.MapGet("/employee/list", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
-{
+app.MapGet("/employee/all", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+    {
+
     httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
     // get all the employees for this user
     return TypedResults.Ok(
         dbContext.Employees
             .Where(x => x.UserId == httpContext.User.GetObjectId())
-            .OrderBy(x => x.Name)
             .Select(x => new EmployeeViewModel(x))
+            .ToDictionary(x => x.Id)
     );
 })
-    .WithName("getEmployees")
+    .WithName("getAllEmployee")
     .RequireAuthorization();
 
 app.MapGet("/employee", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id) 
@@ -225,7 +226,7 @@ app.MapDelete("/work-item", IResult (HttpContext httpContext, EmployeeManagerCon
  * Endpoints for WorkItemCategory CRUD.
  */
 
-app.MapGet("/work-item-category/list", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
+app.MapGet("/work-item-category/all", IResult (HttpContext httpContext, EmployeeManagerContext dbContext) =>
     {
         httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
 
@@ -233,7 +234,8 @@ app.MapGet("/work-item-category/list", IResult (HttpContext httpContext, Employe
         [
             // get the user-defined categories
             .. dbContext.WorkItemCategories
-                .Where(x => x.UserId == httpContext.User.GetObjectId()),
+                .Where(x => x.UserId == httpContext.User.GetObjectId())
+                .Include(x => x.WorkItems),
             // get the unassigned items and build a fake category
             new WorkItemCategory
             {
@@ -245,7 +247,7 @@ app.MapGet("/work-item-category/list", IResult (HttpContext httpContext, Employe
         
         return TypedResults.Ok(categories);
     })
-    .WithName("listWorkItemCategory")
+    .WithName("getAllWorkItemCategory")
     .RequireAuthorization();
 
 app.MapGet("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, [FromQuery] int id)

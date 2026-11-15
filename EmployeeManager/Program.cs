@@ -255,7 +255,8 @@ app.MapGet("/work-item-category/all", IResult (HttpContext httpContext, Employee
             // get the user-defined categories
             .. dbContext.WorkItemCategories
                 .Where(x => x.UserId == httpContext.User.GetObjectId())
-                .Include(x => x.WorkItems),
+                .Include(x => x.WorkItems)
+                .ThenInclude(x => x.AssignedTo),
             // get the unassigned items and build a fake category
             new WorkItemCategory
             {

@@ -9,7 +9,7 @@ public class WorkItemCategory : PerUserEntity
     /**
      * Name of the Category.
      */
-    [MaxLength(100)]
+    [MinLength(1), MaxLength(100)]
     public virtual required string Name { get; init; }
 
     /**

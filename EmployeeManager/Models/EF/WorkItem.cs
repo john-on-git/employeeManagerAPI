@@ -8,12 +8,12 @@ public class WorkItem : PerUserEntity
     /**
      * Tile for the work item.
      */
-    [MaxLength(100)]
+    [MinLength(1), MaxLength(100)]
     public virtual required string Title { get; init; }
     /**
      * Description of the work item.
      */
-    [MaxLength(1000)]
+    [MinLength(1), MaxLength(1000)]
     public virtual required string Description { get; init; }
 
     /**

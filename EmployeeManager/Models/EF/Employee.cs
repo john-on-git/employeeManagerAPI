@@ -10,13 +10,13 @@ public class Employee : PerUserEntity
     /**
      * Full name of the Employee.
      */
-    [MaxLength(100)]
+    [MinLength(1), MaxLength(100)]
     public virtual required string Name { get; init; }
 
     /**
      * Additional notes / info about the employee.
      */
-    [MaxLength(1000)]
+    [MinLength(1), MaxLength(1000)]
     public virtual required string Notes { get; init; }
 
     /**

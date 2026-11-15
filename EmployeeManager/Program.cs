@@ -31,7 +31,21 @@ builder.Services.AddDbContextPool<EmployeeManagerContext>(opt =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+const string myAllowSpecificOrigins = "_myAllowSpecificOrigins";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: myAllowSpecificOrigins,
+        policy  =>
+        {
+            policy.WithOrigins(
+                "http://localhost:4200", "https://localhost:4200"
+            );
+        });
+});
+
 var app = builder.Build();
+
+app.UseCors(myAllowSpecificOrigins);
 
 /*
  * Programatically apply the migrations, this creates the tables for the schema

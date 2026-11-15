@@ -8,8 +8,10 @@ public class ApiTests
     {
     }
 
+    // TODO implement these. Skipping for now because getting to grips with Angular is more important.
+    
     [Test]
-    public void ListEmployee()
+    public void GetAllEmployee()
     {
         Assert.Inconclusive("not implemented");
     }
@@ -33,7 +35,7 @@ public class ApiTests
     }
 
     [Test]
-    public void ListWorkItem()
+    public void GetAllWorkItem()
     {
         Assert.Inconclusive("not implemented");
     }
@@ -57,7 +59,7 @@ public class ApiTests
     }
 
     [Test]
-    public void ListWorkItemCategory()
+    public void GetAllWorkItemCategory()
     {
         Assert.Inconclusive("not implemented");
     }

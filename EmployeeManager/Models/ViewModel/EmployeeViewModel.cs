@@ -1,8 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Claims;
 using EmployeeManager.Models.EF;
-using Microsoft.Identity.Web;
 
 namespace EmployeeManager.Models.ViewModel;
 

@@ -10,6 +10,7 @@ using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.Resource;
 using Npgsql;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -150,9 +151,12 @@ app.MapPost("/employee", IResult (HttpContext httpContext, EmployeeManagerContex
         return CreatePerUserEntity(
             httpContext,
             dbContext,
-            linkGenerator, 
             dbContext.Employees, 
             employee.ToEFModel(httpContext.User),
+            x => linkGenerator.GetUriByName(
+                httpContext, "getEmployee",
+                new { id = x.Id }
+            ),
             x => new EmployeeViewModel(x)
         );
     })
@@ -195,9 +199,11 @@ app.MapPost("/work-item", IResult (HttpContext httpContext, EmployeeManagerConte
         return CreatePerUserEntity(
             httpContext,
             dbContext,
-            linkGenerator, 
             dbContext.WorkItems, 
             workItem,
+            x => linkGenerator.GetUriByName(
+                httpContext, "getAllWorkItemCategory"
+            ),
             x => new WorkItemViewModel(x)
         );
     })
@@ -240,7 +246,7 @@ app.MapGet("/work-item-category/all", IResult (HttpContext httpContext, Employee
             new WorkItemCategory
             {
                 Id = -1,
-                Name = "UNASSIGNED",
+                Name = WorkItemCategory.DefaultCategoryName,
                 WorkItems = [.. dbContext.WorkItems.Where(x => x.Category == null)]
             }
         ]).Select(x => new WorkItemCategoryViewModel(x))];
@@ -259,7 +265,7 @@ app.MapGet("/work-item-category", IResult (HttpContext httpContext, EmployeeMana
 
 app.MapPost("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItemCategoryViewModel category) =>
     {
-        if (category.Id == -1 || category.Name == "Unassigned")
+        if (category.Id == -1 || category.Name == WorkItemCategory.DefaultCategoryName)
         {
             return TypedResults.BadRequest("Reserved work item category.");
         }
@@ -267,9 +273,12 @@ app.MapPost("/work-item-category", IResult (HttpContext httpContext, EmployeeMan
         return CreatePerUserEntity(
             httpContext, 
             dbContext,
-            linkGenerator, 
             dbContext.WorkItemCategories, 
             category.ToEFModel(httpContext.User),
+            x => linkGenerator.GetUriByName(
+                httpContext, "getWorkItemCategory",
+                new { id = x.Id }
+            ),
             x => new WorkItemCategoryViewModel(x)
         );
     })
@@ -278,7 +287,7 @@ app.MapPost("/work-item-category", IResult (HttpContext httpContext, EmployeeMan
 
 app.MapPut("/work-item-category", IResult (HttpContext httpContext, EmployeeManagerContext dbContext, LinkGenerator linkGenerator, [FromBody] WorkItemCategoryViewModel category) =>
     {
-        if (category.Id == -1 || category.Name == "UNASSIGNED")
+        if (category.Id == -1 || category.Name == WorkItemCategory.DefaultCategoryName)
         {
             return TypedResults.BadRequest("Reserved work item category.");
         }
@@ -316,7 +325,7 @@ IResult DetailsPerUserEntity<TEntity,TView>(HttpContext httpContext, DbSet<TEnti
 /*
  * Insert a PerUserEntity into the DB, checking authorization etc.
  */
-IResult CreatePerUserEntity<TEntity,TView> ( HttpContext httpContext, DbContext dbContext, LinkGenerator linkGenerator, DbSet<TEntity> dbSet, TEntity x, Func<TEntity,TView> mapper) where TEntity : PerUserEntity where TView: ViewModel<TEntity>
+IResult CreatePerUserEntity<TEntity,TView> (HttpContext httpContext, DbContext dbContext, DbSet<TEntity> dbSet, TEntity x, Func<TEntity, string?> uriProvider, Func<TEntity,TView> mapper) where TEntity : PerUserEntity where TView: ViewModel<TEntity>
 {
     httpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
 
@@ -330,10 +339,7 @@ IResult CreatePerUserEntity<TEntity,TView> ( HttpContext httpContext, DbContext 
     dbContext.SaveChanges();
     
     return TypedResults.Created(
-        linkGenerator.GetUriByName(
-            httpContext, "getEmployee",
-            new { id = created.Id }
-        ),
+        uriProvider(created),
         mapper(created)
     );
 }

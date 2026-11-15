@@ -4,6 +4,8 @@ namespace EmployeeManager.Models.EF;
 
 public class WorkItemCategory : PerUserEntity
 {
+    public const string DefaultCategoryName = "DEFAULT_CATEGORY";
+
     /**
      * Name of the Category.
      */

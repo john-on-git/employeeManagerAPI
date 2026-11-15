@@ -54,14 +54,21 @@ public class ModelTests
         }
     }
 
-    [TestCase (1,"Boil Water", "Turn on the kettle to boil the water.", 3, 4)]
-    [TestCase (2,  "Place Teabag", "Place the teabag in the cup.", 4,5)]
-    public void WorkItemToViewModel(int id, string title, string description, int assignedToId, int categoryId)
+    [TestCase (1,"user1", "Boil Water", "Turn on the kettle to boil the water.", 3,"Alice", "Alice notes.", 4)]
+    [TestCase (2,  "user2", "Place Teabag", "Place the teabag in the cup.", 4, "Bob", "Bob notes.", 5)]
+    public void WorkItemToViewModel(int id, string userId, string title, string description, int assignedToId, string assignedToName, string assignedToNotes, int categoryId)
     {
+        var mockEmployee = new Mock<Employee>()
+            .SetupProperty(x => x.Id, assignedToId)
+            .SetupProperty(x => x.Name, assignedToName)
+            .SetupProperty(x => x.Notes, assignedToNotes)
+            .Object;
+        
         var mockWorkItem = new Mock<WorkItem>()
             .SetupProperty(x => x.Id, id)
             .SetupProperty(x => x.Title, title)
             .SetupProperty(x => x.Description, description)
+            .SetupProperty(x => x.AssignedTo, mockEmployee)
             .SetupProperty(x => x.AssignedToId, assignedToId)
             .SetupProperty(x => x.CategoryId, categoryId)
             .Object;
@@ -74,16 +81,24 @@ public class ModelTests
             Assert.That(viewModel.Id, Is.EqualTo(id));
             Assert.That(viewModel.Title, Is.EqualTo(title));
             Assert.That(viewModel.Description, Is.EqualTo(description));
-            Assert.That(viewModel.AssignedToId, Is.EqualTo(assignedToId));
+            Assert.That(viewModel.AssignedTo?.Id, Is.EqualTo(assignedToId));
+            Assert.That(viewModel.AssignedTo?.Name, Is.EqualTo(assignedToName));
+            Assert.That(viewModel.AssignedTo?.Notes, Is.EqualTo(assignedToNotes));
             Assert.That(viewModel.CategoryId, Is.EqualTo(categoryId));
         }
     }
 
-    [TestCase (1,"user1", "Boil Water", "Turn on the kettle to boil the water.", 3, 4)]
-    [TestCase (2,  "user2", "Place Teabag", "Place the teabag in the cup.", 4, 5)]
-    public void WorkItemFromViewModel(int id, string userId, string title, string description, int assignedToId, int categoryId)
+    [TestCase (1,"user1", "Boil Water", "Turn on the kettle to boil the water.", 3,"Alice", "Alice notes.", 4)]
+    [TestCase (2,  "user2", "Place Teabag", "Place the teabag in the cup.", 4, "Bob", "Bob notes.", 5)]
+    public void WorkItemFromViewModel(int id, string userId, string title, string description, int assignedToId, string assignedToName, string assignedToNotes, int categoryId)
     {
-        var workItem = new WorkItemViewModel(id, title, description, assignedToId, categoryId).ToEFModel(userId);
+        var mockEmployee = new Mock<Employee>()
+            .SetupProperty(x => x.Id, assignedToId)
+            .SetupProperty(x => x.Name, assignedToName)
+            .SetupProperty(x => x.Notes, assignedToNotes)
+            .Object;
+        
+        var workItem = new WorkItemViewModel(id, title, description, mockEmployee, categoryId).ToEFModel(userId);
         
         using (Assert.EnterMultipleScope())
         {

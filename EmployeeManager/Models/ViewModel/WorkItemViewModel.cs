@@ -5,12 +5,13 @@ using EmployeeManager.Models.EF;
 
 namespace EmployeeManager.Models.ViewModel;
 
+
 [method: SetsRequiredMembers]
 [method: JsonConstructor]
-public class WorkItemViewModel(int id, string title, string description, int? assignedToId, int? categoryId) : ViewModel<WorkItem>(id)
+public class WorkItemViewModel(int id, string title, string description, Employee? assignedTo, int? categoryId) : ViewModel<WorkItem>(id)
 {
     [method: SetsRequiredMembers]
-    public WorkItemViewModel(WorkItem workItem) : this(workItem.Id, workItem.Title, workItem.Description, workItem.AssignedToId, workItem.CategoryId)
+    public WorkItemViewModel(WorkItem workItem) : this(workItem.Id, workItem.Title, workItem.Description, workItem.AssignedTo, workItem.CategoryId)
     {
     }
     
@@ -19,7 +20,10 @@ public class WorkItemViewModel(int id, string title, string description, int? as
     [MaxLength(1000)]
     public virtual required string Description { get; init; } = description;
 
-    public virtual required int? AssignedToId { get; init; } = assignedToId;
+    public virtual required EmployeeViewModel? AssignedTo { get; init; } = 
+        assignedTo == null 
+            ? null
+            : new EmployeeViewModel(assignedTo);
 
     public virtual required int? CategoryId { get; init; } = categoryId;
     
@@ -31,7 +35,7 @@ public class WorkItemViewModel(int id, string title, string description, int? as
             UserId=userId,
             Title=Title,
             Description=Description,
-            AssignedToId = AssignedToId,
+            AssignedToId = AssignedTo?.Id,
             AssignedTo=null,
             CategoryId = CategoryId,
             Category=null

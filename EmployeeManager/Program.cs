@@ -263,7 +263,9 @@ app.MapGet("/work-item-category/all", IResult (HttpContext httpContext, Employee
                 Name = WorkItemCategory.DefaultCategoryName,
                 WorkItems = [.. dbContext.WorkItems.Where(x => x.Category == null)]
             }
-        ]).Select(x => new WorkItemCategoryViewModel(x))];
+        ])
+            .OrderBy(x => x.Id)
+            .Select(x => new WorkItemCategoryViewModel(x))];
         
         return TypedResults.Ok(categories);
     })
